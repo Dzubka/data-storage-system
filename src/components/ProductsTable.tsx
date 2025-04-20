@@ -9,49 +9,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Pencil, Trash2, CheckCircle, XCircle, RotateCcw } from "lucide-react";
 import { Product } from "@/types";
-import { getMockProducts } from "@/data/mockData";
+import { getProducts, updateProduct, deleteProduct, restoreProduct } from "@/data/mockData";
 
 interface ProductsTableProps {
   userRole: string;
   selectedCategory: string | null;
   showAll?: boolean;
   lowStockOnly?: boolean;
+  showDeleted?: boolean;
+  onProductChange?: () => void;
 }
 
 const ProductsTable = ({ 
   userRole, 
   selectedCategory,
   showAll = false,
-  lowStockOnly = false
+  lowStockOnly = false,
+  showDeleted = false,
+  onProductChange
 }: ProductsTableProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editedValues, setEditedValues] = useState<Partial<Product>>({});
 
   useEffect(() => {
-    let productsData = getMockProducts();
-    
-    // Filter for customers - show only products for sale
-    if (userRole === "customer" && !showAll) {
-      productsData = productsData.filter((product) => product.forSale);
+    loadProducts();
+  }, [userRole, selectedCategory, showAll, lowStockOnly, showDeleted]);
+
+  const loadProducts = () => {
+    // Загружаем товары с учетом фильтров
+    if (!showDeleted) {
+      const params: {
+        onlyForSale?: boolean;
+        category?: string;
+        lowStock?: boolean;
+      } = {};
+      
+      if (userRole === "customer" && !showAll) {
+        params.onlyForSale = true;
+      }
+      
+      if (selectedCategory) {
+        params.category = selectedCategory;
+      }
+      
+      if (lowStockOnly) {
+        params.lowStock = true;
+      }
+      
+      setProducts(getProducts(params));
+    } else {
+      // Загружаем удаленные товары из отдельной "таблицы"
+      import("@/data/mockData").then(module => {
+        setProducts(module.getDeletedProducts());
+      });
     }
-    
-    // Filter by category if selected
-    if (selectedCategory) {
-      productsData = productsData.filter(
-        (product) => product.category === selectedCategory
-      );
-    }
-    
-    // Filter low stock items if needed
-    if (lowStockOnly) {
-      productsData = productsData.filter((product) => product.quantity < 5);
-    }
-    
-    setProducts(productsData);
-  }, [userRole, selectedCategory, showAll, lowStockOnly]);
+  };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -66,13 +81,14 @@ const ProductsTable = ({
   const handleSave = () => {
     if (!editingProduct) return;
 
-    const updatedProducts = products.map((p) =>
-      p.id === editingProduct.id ? { ...p, ...editedValues } : p
-    );
-
-    setProducts(updatedProducts);
+    updateProduct(editingProduct.id, editedValues);
+    loadProducts();
     setEditingProduct(null);
     setEditedValues({});
+    
+    if (onProductChange) {
+      onProductChange();
+    }
   };
 
   const handleCancel = () => {
@@ -81,7 +97,21 @@ const ProductsTable = ({
   };
 
   const handleDelete = (productId: number) => {
-    setProducts(products.filter((p) => p.id !== productId));
+    deleteProduct(productId);
+    loadProducts();
+    
+    if (onProductChange) {
+      onProductChange();
+    }
+  };
+
+  const handleRestore = (productId: number) => {
+    restoreProduct(productId);
+    loadProducts();
+    
+    if (onProductChange) {
+      onProductChange();
+    }
   };
 
   const handleChange = (field: keyof Product, value: string | number | boolean) => {
@@ -109,15 +139,17 @@ const ProductsTable = ({
           {products.length === 0 ? (
             <TableRow>
               <TableCell colSpan={userRole === "manager" ? 6 : 4} className="text-center py-8 text-gray-500">
-                {selectedCategory 
-                  ? `Нет товаров в категории "${selectedCategory}"` 
-                  : "Нет доступных товаров"
+                {showDeleted
+                  ? "Нет удаленных товаров"
+                  : selectedCategory 
+                    ? `Нет товаров в категории "${selectedCategory}"` 
+                    : "Нет доступных товаров"
                 }
               </TableCell>
             </TableRow>
           ) : (
             products.map((product) => (
-              <TableRow key={product.id}>
+              <TableRow key={product.id} className={product.isDeleted ? "bg-gray-100" : ""}>
                 <TableCell>
                   {editingProduct?.id === product.id ? (
                     <input
@@ -180,7 +212,16 @@ const ProductsTable = ({
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {editingProduct?.id === product.id ? (
+                      {product.isDeleted ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRestore(product.id)}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Восстановить
+                        </Button>
+                      ) : editingProduct?.id === product.id ? (
                         <div className="flex justify-end space-x-2">
                           <Button size="sm" onClick={handleSave}>
                             Сохранить

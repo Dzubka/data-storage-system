@@ -1,75 +1,193 @@
 
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import ProductsTable from "@/components/ProductsTable";
-import AddProductForm from "@/components/AddProductForm";
-import CategoryFilter from "@/components/CategoryFilter";
+import { 
+  BoxIcon, 
+  PackageOpen, 
+  ShoppingCart, 
+  ListFilter, 
+  AlertTriangle, 
+  LayoutGrid 
+} from "lucide-react";
+import { getProducts, getCategories } from "@/data/mockData";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ProductsTable from "@/components/ProductsTable";
+import CategoryFilter from "@/components/CategoryFilter";
 
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+interface DashboardProps {
+  userRole: string;
+  onLogout: () => void;
+}
+
+const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [productsUpdated, setProductsUpdated] = useState(0);
 
-  useEffect(() => {
-    const role = localStorage.getItem("userRole");
-    if (!role) {
-      navigate("/");
-      return;
-    }
-    setUserRole(role);
-  }, [navigate]);
+  // Получаем данные для дашборда
+  const allProducts = getProducts();
+  const productsForSale = getProducts({ onlyForSale: true });
+  const lowStockProducts = getProducts({ lowStock: true });
+  const categories = getCategories();
+  
+  // Данные для графика по категориям
+  const chartData = categories.map(category => {
+    const count = allProducts.filter(p => p.category === category.name).length;
+    return { 
+      name: category.name, 
+      count 
+    };
+  });
 
-  if (!userRole) return null;
+  // Обработчик изменения товаров
+  const handleProductChange = () => {
+    setProductsUpdated(prev => prev + 1);
+  };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header userRole={userRole} />
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Header userRole={userRole} onLogout={onLogout} />
       
-      <main className="flex-grow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-purple-700 mb-4">
-              {userRole === "manager" ? "Панель управления" : "Каталог товаров"}
-            </h1>
-            <p className="text-gray-600">
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">
+          {userRole === "manager" ? "Панель управления" : "Каталог товаров"}
+        </h1>
+        
+        {userRole === "manager" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  Всего товаров
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <BoxIcon className="h-8 w-8 text-purple-600 mr-3" />
+                  <span className="text-3xl font-bold">{allProducts.length}</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  На продаже
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <ShoppingCart className="h-8 w-8 text-green-600 mr-3" />
+                  <span className="text-3xl font-bold">{productsForSale.length}</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  Мало на складе
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <AlertTriangle className="h-8 w-8 text-orange-500 mr-3" />
+                  <span className="text-3xl font-bold">{lowStockProducts.length}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {userRole === "manager" && (
+          <div className="mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Распределение товаров по категориям</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData}
+                      margin={{
+                        top: 10,
+                        right: 30,
+                        left: 0,
+                        bottom: 40,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="name" 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={70} 
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        <div className="space-y-6 mb-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <h2 className="text-xl font-semibold">
               {userRole === "manager" 
-                ? "Здесь вы можете управлять товарами, добавлять новые позиции и следить за складскими запасами." 
-                : "Добро пожаловать в каталог товаров для дома. Здесь представлены все товары, доступные для покупки."
-              }
-            </p>
-          </div>
-
-          {userRole === "manager" && (
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <Button 
-                  onClick={() => setShowAddForm(!showAddForm)}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  {showAddForm ? "Отменить" : "Добавить товар"}
+                ? "Все товары" 
+                : "Доступные товары"}
+            </h2>
+            
+            <div className="flex gap-2">
+              {userRole === "manager" && (
+                <Button asChild>
+                  <Link to="/warehouse">
+                    <PackageOpen className="mr-2 h-4 w-4" />
+                    Управление складом
+                  </Link>
                 </Button>
-              </div>
-              <CategoryFilter onSelectCategory={setSelectedCategory} />
+              )}
+              
+              <Button asChild variant="outline">
+                <Link to="/categories">
+                  <LayoutGrid className="mr-2 h-4 w-4" />
+                  Категории
+                </Link>
+              </Button>
+              
+              <Button asChild variant="outline">
+                <Link to="/products">
+                  <ListFilter className="mr-2 h-4 w-4" />
+                  Товары на продаже
+                </Link>
+              </Button>
             </div>
-          )}
-
-          {showAddForm && userRole === "manager" && (
-            <div className="mb-8 bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-lg font-medium mb-4">Новый товар</h2>
-              <AddProductForm onComplete={() => setShowAddForm(false)} />
-            </div>
-          )}
-
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <ProductsTable 
-              userRole={userRole} 
-              selectedCategory={selectedCategory}
-            />
           </div>
+          
+          <CategoryFilter onSelectCategory={setSelectedCategory} />
+          
+          <ProductsTable 
+            userRole={userRole} 
+            selectedCategory={selectedCategory} 
+            showAll={userRole === "manager"}
+            onProductChange={handleProductChange}
+          />
         </div>
       </main>
       

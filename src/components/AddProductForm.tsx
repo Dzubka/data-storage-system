@@ -1,15 +1,25 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { addProduct, getCategories } from "@/data/mockData";
+import { Category } from "@/types";
 
 interface AddProductFormProps {
   onComplete: () => void;
 }
 
 const AddProductForm = ({ onComplete }: AddProductFormProps) => {
+  const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState({
     name: "",
     category: "",
@@ -18,6 +28,11 @@ const AddProductForm = ({ onComplete }: AddProductFormProps) => {
     forSale: false
   });
 
+  useEffect(() => {
+    // Загружаем список категорий
+    setCategories(getCategories());
+  }, []);
+
   const handleChange = (field: string, value: string | number | boolean) => {
     setProduct(prev => ({ ...prev, [field]: value }));
   };
@@ -25,8 +40,14 @@ const AddProductForm = ({ onComplete }: AddProductFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // В реальном приложении здесь будет API запрос для добавления товара
-    console.log("Adding new product:", product);
+    // Добавляем новый товар через "БД" функцию
+    addProduct({
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      quantity: product.quantity,
+      forSale: product.forSale
+    });
     
     // Очищаем форму и вызываем обратный вызов
     setProduct({
@@ -38,6 +59,13 @@ const AddProductForm = ({ onComplete }: AddProductFormProps) => {
     });
     
     onComplete();
+  };
+
+  const isFormValid = () => {
+    return product.name && 
+           product.category && 
+           product.price > 0 && 
+           product.quantity > 0;
   };
 
   return (
@@ -58,12 +86,21 @@ const AddProductForm = ({ onComplete }: AddProductFormProps) => {
           
           <div className="space-y-2">
             <Label htmlFor="category">Категория</Label>
-            <Input
-              id="category"
-              value={product.category}
-              onChange={(e) => handleChange("category", e.target.value)}
-              required
-            />
+            <Select 
+              value={product.category} 
+              onValueChange={(value) => handleChange("category", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите категорию" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category.id} value={category.name}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="space-y-2">
@@ -104,7 +141,11 @@ const AddProductForm = ({ onComplete }: AddProductFormProps) => {
         </div>
         
         <div className="pt-4">
-          <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+          <Button 
+            type="submit" 
+            className="bg-purple-600 hover:bg-purple-700"
+            disabled={!isFormValid()}
+          >
             Добавить товар
           </Button>
         </div>

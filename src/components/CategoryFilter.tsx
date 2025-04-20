@@ -1,22 +1,20 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { mockProducts } from "@/data/mockData";
+import { getCategories } from "@/data/mockData";
+import { Category } from "@/types";
 
 interface CategoryFilterProps {
   onSelectCategory: (category: string | null) => void;
 }
 
 const CategoryFilter = ({ onSelectCategory }: CategoryFilterProps) => {
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    // Получаем уникальные категории из товаров
-    const uniqueCategories = Array.from(
-      new Set(mockProducts.map(product => product.category))
-    );
-    setCategories(uniqueCategories);
+    // Загружаем категории из "БД"
+    setCategories(getCategories());
   }, []);
 
   const handleCategoryClick = (category: string) => {
@@ -36,25 +34,28 @@ const CategoryFilter = ({ onSelectCategory }: CategoryFilterProps) => {
   };
 
   return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <span className="text-sm font-medium text-gray-700">Фильтр по категории:</span>
+    <div className="mb-6">
+      <h3 className="text-sm font-medium text-gray-700 mb-2">Фильтр по категории:</h3>
       
-      {categories.map(category => (
-        <Button
-          key={category}
-          variant={activeCategory === category ? "default" : "outline"}
-          size="sm"
-          onClick={() => handleCategoryClick(category)}
-        >
-          {category}
-        </Button>
-      ))}
-      
-      {activeCategory && (
-        <Button variant="ghost" size="sm" onClick={handleResetFilter}>
-          Сбросить
-        </Button>
-      )}
+      <div className="flex flex-wrap gap-2 items-center">
+        {categories.map(category => (
+          <Button
+            key={category.id}
+            variant={activeCategory === category.name ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleCategoryClick(category.name)}
+            className="capitalize"
+          >
+            {category.name}
+          </Button>
+        ))}
+        
+        {activeCategory && (
+          <Button variant="ghost" size="sm" onClick={handleResetFilter}>
+            Сбросить
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

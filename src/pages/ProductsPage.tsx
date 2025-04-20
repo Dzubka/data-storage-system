@@ -1,69 +1,51 @@
 
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductsTable from "@/components/ProductsTable";
 import CategoryFilter from "@/components/CategoryFilter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShoppingCart } from "lucide-react";
 
-const ProductsPage = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    searchParams.get("category")
-  );
+interface ProductsPageProps {
+  userRole: string;
+  onLogout: () => void;
+}
 
-  useEffect(() => {
-    const role = localStorage.getItem("userRole");
-    if (!role) {
-      navigate("/");
-      return;
-    }
-    setUserRole(role);
-  }, [navigate]);
-
-  useEffect(() => {
-    setSelectedCategory(searchParams.get("category"));
-  }, [searchParams]);
-
-  if (!userRole) return null;
+const ProductsPage = ({ userRole, onLogout }: ProductsPageProps) => {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header userRole={userRole} />
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Header userRole={userRole} onLogout={onLogout} />
       
-      <main className="flex-grow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-purple-700 mb-4">
-              {userRole === "manager" 
-                ? "Все товары на складе" 
-                : "Доступные для покупки товары"
-              }
-            </h1>
-            {selectedCategory && (
-              <p className="text-gray-600">
-                Фильтр: Категория "{selectedCategory}"
-              </p>
-            )}
-          </div>
-          
-          <div className="mb-6 flex justify-end">
-            <CategoryFilter 
-              onSelectCategory={setSelectedCategory} 
-              initialCategory={selectedCategory} 
-            />
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <ProductsTable 
-              userRole={userRole} 
-              selectedCategory={selectedCategory}
-              showAll={userRole === "manager"}
-            />
-          </div>
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <div className="flex items-center gap-4 mb-6">
+          <ShoppingCart className="h-8 w-8 text-purple-600" />
+          <h1 className="text-2xl font-bold">Товары на продаже</h1>
         </div>
+        
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Доступные товары</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <p className="text-gray-600">
+                Здесь представлены все товары, доступные для покупки. 
+                Вы можете отфильтровать их по категории для удобного просмотра.
+              </p>
+              
+              <CategoryFilter onSelectCategory={setSelectedCategory} />
+              
+              <ProductsTable 
+                userRole={userRole} 
+                selectedCategory={selectedCategory} 
+                showAll={false} // Только товары на продаже
+              />
+            </div>
+          </CardContent>
+        </Card>
       </main>
       
       <Footer />
